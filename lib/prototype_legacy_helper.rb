@@ -258,10 +258,12 @@ module PrototypeHelper
   # See FormHelper#form_for for additional semantics.
   def remote_form_for(record_or_name_or_array, *args, &proc)
     options = args.extract_options!
+    options[:html] = {} if options[:html].nil?
 
     case record_or_name_or_array
     when String, Symbol
       object_name = record_or_name_or_array
+      args.unshift nil if args.empty?
     when Array
       object = record_or_name_or_array.last
       object_name = ActiveModel::Naming.singular(object)
@@ -409,6 +411,51 @@ module PrototypeHelper
      frequency = options[:frequency] || 10 # every ten seconds by default
      code = "new PeriodicalExecuter(function() {#{remote_function(options)}}, #{frequency})"
      javascript_tag(code)
+  end
+
+  CALLBACKS    = Set.new([ :create, :uninitialized, :loading, :loaded,
+                           :interactive, :complete, :failure, :success ] +
+                           (100..599).to_a)
+
+  # Returns the JavaScript needed for a remote function.
+  # See the link_to_remote documentation at http://github.com/rails/prototype_legacy_helper as it takes the same arguments.
+  #
+  # Example:
+  #   # Generates: <select id="options" onchange="new Ajax.Updater('options',
+  #   # '/testing/update_options', {asynchronous:true, evalScripts:true})">
+  #   <select id="options" onchange="<%= remote_function(:update => "options",
+  #       :url => { :action => :update_options }) %>">
+  #     <option value="0">Hello</option>
+  #     <option value="1">World</option>
+  #   </select>
+  def remote_function(options)
+    puts "REMOTE FUNCTION CALLED BITCHES"
+    javascript_options = options_for_ajax(options)
+
+    update = ''
+    if options[:update] && options[:update].is_a?(Hash)
+      update  = []
+      update << "success:'#{options[:update][:success]}'" if options[:update][:success]
+      update << "failure:'#{options[:update][:failure]}'" if options[:update][:failure]
+      update  = '{' + update.join(',') + '}'
+    elsif options[:update]
+      update << "'#{options[:update]}'"
+    end
+
+    function = update.empty? ?
+      "new Ajax.Request(" :
+      "new Ajax.Updater(#{update}, "
+
+    url_options = options[:url]
+    function << "'#{html_escape(escape_javascript(url_for(url_options)))}'"
+    function << ", #{javascript_options})"
+
+    function = "#{options[:before]}; #{function}" if options[:before]
+    function = "#{function}; #{options[:after]}"  if options[:after]
+    function = "if (#{options[:condition]}) { #{function}; }" if options[:condition]
+    function = "if (confirm('#{escape_javascript(options[:confirm])}')) { #{function}; }" if options[:confirm]
+
+    return function.html_safe
   end
 
   protected
