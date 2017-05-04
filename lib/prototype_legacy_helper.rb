@@ -428,8 +428,7 @@ module PrototypeHelper
   #     <option value="0">Hello</option>
   #     <option value="1">World</option>
   #   </select>
-  def remote_function(options)
-    puts "REMOTE FUNCTION CALLED BITCHES"
+  def remote_function(options)    
     javascript_options = options_for_ajax(options)
 
     update = ''
